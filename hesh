@@ -1,0 +1,387 @@
+#include <iostream>
+#include <chrono>
+using namespace std;
+
+// Простая хеш-функция, отображающая строку в целое число
+int hash1(string s) {
+    int h = 0;
+    for (char c : s) {
+        h = (h * 31 + c) % 100; // Взятие по модулю 100 для ограничения диапазона хеш-значения
+    }
+    return h;
+}
+
+// Другая простая хеш-функция с использованием битовых операций
+int hash2(string s) {
+    int h = 0;
+    for (char c : s) {
+        h = (h ^ (c << 5) ^ (c >> 3)) % 100; // Взятие по модулю 100 для ограничения диапазона хеш-значения
+    }
+    return h;
+}
+
+// Класс хеш-таблицы, использующий массив связанных списков для обработки коллизий
+class HashTable1 {
+private:
+    struct Node {
+        string key;
+        string value;
+        Node* next;
+        Node(string k, string v) {
+            key = k;
+            value = v;
+            next = nullptr;
+        }
+    };
+    Node** table; // Массив указателей на узлы
+    int size;     // Размер массива
+    int count;    // Количество элементов в хеш-таблице
+public:
+    // Конструктор
+    HashTable1(int s) {
+        size = s;
+        table = new Node * [size];
+        for (int i = 0; i < size; i++) {
+            table[i] = nullptr;
+        }
+        count = 0;
+    }
+
+    // Деструктор
+    ~HashTable1() {
+        for (int i = 0; i < size; i++) {
+            Node* curr = table[i];
+            while (curr != nullptr) {
+                Node* temp = curr;
+                curr = curr->next;
+                delete temp;
+            }
+        }
+        delete[] table;
+    }
+
+    // Вставка пары ключ-значение в хеш-таблицу
+    void insert(string key, string value) {
+        int index = hash1(key); // Используем hash1 как хеш-функцию
+        Node* newNode = new Node(key, value);
+        if (table[index] == nullptr) {
+            // Нет коллизий, вставляем в начало списка
+            table[index] = newNode;
+        }
+        else {
+            // Коллизия, вставляем в конец списка
+            Node* curr = table[index];
+            while (curr->next != nullptr) {
+                curr = curr->next;
+            }
+            curr->next = newNode;
+        }
+        count++;
+    }
+
+    // Поиск ключа в хеш-таблице и возврат соответствующего значения
+    string search(string key) {
+        int index = hash1(key); // Используем hash1 как хеш-функцию
+        Node* curr = table[index];
+        while (curr != nullptr) {
+            if (curr->key == key) {
+                return curr->value; // Ключ найден, возвращаем значение
+            }
+            curr = curr->next;
+        }
+        return ""; // Ключ не найден, возвращаем пустую строку
+    }
+
+    // Удаление пары ключ-значение из хеш-таблицы
+    void remove(string key) {
+        int index = hash1(key); // Используем hash1 как хеш-функцию
+        Node* curr = table[index];
+        Node* prev = nullptr;
+        while (curr != nullptr) {
+            if (curr->key == key) {
+                // Ключ найден, удаляем узел
+                if (prev == nullptr) {
+                    // Узел является головой списка
+                    table[index] = curr->next;
+                }
+                else {
+                    // Узел не является головой списка
+                    prev->next = curr->next;
+                }
+                delete curr;
+                count--;
+                return;
+            }
+            prev = curr;
+            curr = curr->next;
+        }
+        // Ключ не найден, ничего не делаем
+    }
+
+    // Возвращает количество элементов в хеш-таблице
+    int getCount() {
+        return count;
+    }
+};
+
+// Класс хеш-таблицы, использующий массив строк для хранения значений 
+class HashTable2 {
+private:
+    string* table; // Массив строк
+    int size;      // Размер массива
+    int count;     // Количество элементов в хеш-таблице
+public:
+    // Конструктор
+    HashTable2(int s) {
+        size = s;
+        table = new string[size];
+        for (int i = 0; i < size; i++) {
+            table[i] = ""; // Инициализация массива пустыми строками
+        }
+        count = 0;
+    }
+
+    // Деструктор
+    ~HashTable2() {
+        delete[] table;
+    }
+
+    // Вставка пары ключ-значение в хеш-таблицу
+    void insert(string key, string value) {
+        int index = hash2(key); // Используем hash2 как хеш-функцию
+        int i = 0;
+        while (i < size) {
+            if (table[index] == "") {
+                // Нет коллизий, вставляем значение по индексу
+                table[index] = value;
+                count++;
+                return;
+            }
+            else {
+                // Коллизия, используем линейное пробирование для поиска следующего доступного слота
+                index = (index + 1) % size;
+                i++;
+            }
+        }
+        // Хеш-таблица полна, ничего не делаем
+    }
+
+    // Поиск ключа в хеш-таблице и возврат соответствующего значения
+    string search(string key) {
+        int index = hash2(key); // Используем hash2 как хеш-функцию
+        int i = 0;
+        while (i < size) {
+            if (table[index] == "") {
+                // Пустой слот, ключ не найден, возвращаем пустую строку
+                return "";
+            }
+            else if (table[index] == key) {
+                // Ключ найден, возвращаем значение
+                return table[index];
+            }
+            else {
+                // Коллизия, используем линейное пробирование для поиска следующего слота
+                index = (index + 1) % size;
+                i++;
+            }
+        }
+        // Хеш-таблица полна, ключ не найден, возвращаем пустую строку
+        return "";
+    }
+
+    // Удаление пары ключ-значение из хеш-таблицы
+    void remove(string key) {
+        int index = hash2(key); // Используем hash2 как хеш-функцию
+        int i = 0;
+        while (i < size) {
+            if (table[index] == "") {
+                // Пустой слот, ключ не найден, ничего не делаем
+                return;
+            }
+            else if (table[index] == key) {
+                // Ключ найден, удаляем значение
+                table[index] = "";
+                count--;
+                return;
+            }
+            else {
+                // Коллизия, используем линейное пробирование для поиска следующего слота
+                index = (index + 1) % size;
+                i++;
+            }
+        }
+        // Хеш-таблица полна, ключ не найден, ничего не делаем
+    }
+
+    // Возвращает количество элементов в хеш-таблице
+    int getCount() {
+        return count;
+    }
+};
+
+// Функция, измеряющая время вставки n элементов в хеш-таблицу
+double measureInsertTime(HashTable1* ht1, HashTable2* ht2, int n) {
+    // Генерация n случайных строк длиной 10
+    string* keys = new string[n];
+    string* values = new string[n];
+    for (int i = 0; i < n; i++) {
+        keys[i] = "";
+        values[i] = "";
+        for (int j = 0; j < 10; j++) {
+            keys[i] += (char)('a' + rand() % 26); // Случайная строчная буква
+            values[i] += (char)('A' + rand() % 26); // Случайная заглавная буква
+        }
+    }
+
+    // Запуск таймера
+    auto start = chrono::high_resolution_clock::now();
+
+    // Вставка пар ключ-значение в хеш-таблицу
+    for (int i = 0; i < n; i++) {
+        ht1->insert(keys[i], values[i]);
+        ht2->insert(keys[i], values[i]);
+    }
+
+    // Остановка таймера
+    auto stop = chrono::high_resolution_clock::now();
+
+    // Расчет длительности в миллисекундах и преобразование в double
+    auto duration = chrono::duration_cast<chrono::duration<double>>(stop - start);
+
+    // Удаление массивов
+    delete[] keys;
+    delete[] values;
+
+    // Возврат длительности в виде вещественного числа
+    return duration.count();
+}
+
+// Функция, измеряющая время поиска n элементов в хеш-таблице
+double measureSearchTime(HashTable1* ht1, HashTable2* ht2, int n) {
+    // Генерация n случайных строк длиной 10
+    string* keys = new string[n];
+    for (int i = 0; i < n; i++) {
+        keys[i] = "";
+        for (int j = 0; j < 10; j++) {
+            keys[i] += (char)('a' + rand() % 26); // Случайная строчная буква
+        }
+    }
+
+    // Запуск таймера
+    auto start = chrono::high_resolution_clock::now();
+
+    // Поиск ключей в хеш-таблице
+    for (int i = 0; i < n; i++) {
+        ht1->search(keys[i]);
+        ht2->search(keys[i]);
+    }
+
+    // Остановка таймера
+    auto stop = chrono::high_resolution_clock::now();
+
+    // Расчет длительности в миллисекундах и преобразование в double
+    auto duration = chrono::duration_cast<chrono::duration<double>>(stop - start);
+
+    // Удаление массива
+    delete[] keys;
+
+    // Возврат длительности в виде вещественного числа
+    return duration.count();
+}
+
+// Функция, измеряющая время удаления n элементов из хеш-таблицы
+double measureDeleteTime(HashTable1* ht1, HashTable2* ht2, int n) {
+    // Генерация n случайных строк длиной 10
+    string* keys = new string[n];
+    for (int i = 0; i < n; i++) {
+        keys[i] = "";
+        for (int j = 0; j < 10; j++) {
+            keys[i] += (char)('a' + rand() % 26); // Случайная строчная буква
+        }
+    }
+
+    // Запуск таймера
+    auto start = chrono::high_resolution_clock::now();
+
+    // Удаление ключей из хеш-таблицы
+    for (int i = 0; i < n; i++) {
+        ht1->remove(keys[i]);
+        ht2->remove(keys[i]);
+    }
+
+    // Остановка таймера
+    auto stop = chrono::high_resolution_clock::now();
+
+    // Расчет длительности в миллисекундах и преобразование в double
+    auto duration = chrono::duration_cast<chrono::duration<double>>(stop - start);
+
+    // Удаление массива
+    delete[] keys;
+
+    // Возврат длительности в виде вещественного числа
+    return duration.count();
+}
+
+// Функция, сравнивающая производительность двух хеш-таблиц с учетом размера
+void compareHashTables(HashTable1* ht1, HashTable2* ht2, int n, int tableSize) {
+    // Измерение времени вставки n элементов в хеш-таблицы
+    double insertTime = measureInsertTime(ht1, ht2, n);
+
+    // Измерение времени поиска n элементов в хеш-таблицах
+    double searchTime = measureSearchTime(ht1, ht2, n);
+
+    // Измерение времени удаления n элементов из хеш-таблиц
+    double deleteTime = measureDeleteTime(ht1, ht2, n);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    // Вставка данных в ht1
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - start;
+    std::cout << "Время вставки для HashTable1: " << diff.count() << " секунд\n";
+
+    start = std::chrono::high_resolution_clock::now();
+    // Вставка данных в ht2
+    end = std::chrono::high_resolution_clock::now();
+    diff = end - start;
+    cout << "Время вставки для HashTable2: " << diff.count() << " секунд\n";
+
+    // Вывод результатов
+    cout << "Время вставки " << n << " элементов в хеш-таблицы: " << insertTime << " секунд." << endl;
+    cout << "Время поиска " << n << " элементов в хеш-таблицах: " << searchTime << " секунд." << endl;
+    cout << "Время удаления " << n << " элементов из хеш-таблиц: " << deleteTime << " секунд." << endl;
+    cout << "Количество элементов в HashTable1: " << ht1->getCount() << "." << endl;
+    cout << "Количество элементов в HashTable2: " << ht2->getCount() << "." << endl;
+    cout << "Размер хеш-таблицы: " << tableSize << "." << endl;
+}
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+
+    // Использование оператора switch-case для выбора количества элементов для вставки, поиска и удаления
+    int n;
+    cout << "Введите количество элементов для вставки, поиска и удаления (выберите из 1000, 2000, 5000, 10000): ";
+    cin >> n;
+
+    // Проверка, что введено одно из допустимых значений
+    if (n != 1000 && n != 2000 && n != 5000 && n != 10000) {
+        cout << "Неверный выбор. Пожалуйста, введите 1000, 2000, 5000 или 10000." << endl;
+        return 0;
+    }
+
+    // Увеличение размера хеш-таблицы
+    int tableSize = 2 * n;
+
+    // Создание двух хеш-таблиц с увеличенным размером
+    HashTable1* ht1 = new HashTable1(tableSize);
+    HashTable2* ht2 = new HashTable2(tableSize);
+
+    // Сравнение производительности хеш-таблиц
+    compareHashTables(ht1, ht2, n, tableSize);
+
+    // Удаление хеш-таблиц
+    delete ht1;
+    delete ht2;
+
+    return 0;
+}
+
